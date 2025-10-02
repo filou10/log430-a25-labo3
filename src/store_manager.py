@@ -3,15 +3,23 @@ Order manager application
 SPDX - License - Identifier: LGPL - 3.0 - or -later
 Auteurs : Gabriel C. Ullmann, Fabio Petrillo, 2025
 """
+from flask import Flask, jsonify, request
 from graphene import Schema
+
+from orders.controllers.order_controller import (
+    create_order, get_order, get_report_best_selling_products,
+    get_report_highest_spending_users, remove_order)
+from orders.controllers.user_controller import (create_user, get_user,
+                                                remove_user)
+from stocks.controllers.product_controller import (create_product, get_product,
+                                                   remove_product)
+from stocks.controllers.stock_controller import (get_stock, get_stock_overview,
+                                                 set_stock)
 from stocks.schemas.query import Query
-from flask import Flask, request, jsonify
-from orders.controllers.order_controller import create_order, remove_order, get_order, get_report_highest_spending_users, get_report_best_selling_products
-from orders.controllers.user_controller import create_user, remove_user, get_user
-from stocks.controllers.product_controller import create_product, remove_product, get_product
-from stocks.controllers.stock_controller import get_stock, set_stock, get_stock_overview
- 
+from sync_redis import sync_redis_with_mysql
+
 app = Flask(__name__)
+sync_redis_with_mysql()
 
 @app.get('/health-check')
 def health():

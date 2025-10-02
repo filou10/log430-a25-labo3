@@ -1,10 +1,12 @@
 FROM python:3.11-slim
 
-WORKDIR /app/src
+WORKDIR /app
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml README.md  ./
+
+RUN pip install uv
+RUN uv pip install .[dev] --system
 
 COPY . .
 
-CMD ["python", "store_manager.py"]
+CMD ["python", "src/store_manager.py"]

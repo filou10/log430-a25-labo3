@@ -1,4 +1,4 @@
-@startuml
+@startuml activity
     start
         :Choisir une option de gestion du magasin;
         if (Ajouter une commande) then (oui)           

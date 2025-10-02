@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "log430-a25-labo3"
+version = "0.0.1"
+readme = "README.md"
+authors = [
+    {name = "Felix-Antoine Legault", email = "felix-antoine.legault.2@ens.etsmtl.ca"}
+]
+dependencies = [
+    "pytest-cov",
+    "pytest>=7.0",
+    "python-dotenv>=1.0",
+    "Flask>=2.0",
+    "SQLAlchemy>=1.4",
+    "mysql-connector-python>=8.0",
+    "pymysql>=1.1",
+    "cryptography>=45.0",
+    "redis>=4.0",
+    "graphene>=3.4",
+    "requests>=2.32"
+]
+
+[project.optional-dependencies]
+dev = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = "src"
+# addopts = "--cov=src --cov-report=term-missing"
+

@@ -58,7 +58,7 @@ Une API qui respecte l'ensemble de ces principes est appelée une API RESTful. P
 Dans `src/tests/test_store_manager.py`, dans la méthode `test_stock_flow()`, écrivez un [smoke test](https://www.techtarget.com/searchsoftwarequality/definition/smoke-testing) pour que nous puissions observer comment le processus de stock fonctionne, et aussi nous assurer qu'il fonctionne de manière consistante. Testez les endpoints suivants :
 
 1. Créez un article (`POST /products`)
-2. Ajoutez 5 unités au stock de cet article (`POST /products_stocks`)
+2. Ajoutez 5 unités au stock de cet article (`POST /stocks`)
 3. Vérifiez le stock, votre article devra avoir 5 unités dans le stock (`GET /stocks/:id`)
 4. Faites une commande de 2 unités de l'article que vous avez créé  (`POST /orders`)
 5. Vérifiez le stock encore une fois (`GET /stocks/:id`)
