@@ -146,13 +146,14 @@ Pour faire fonctionner le supplier app script, j'ai dû modifier l'URL de l'API 
 
 ![supplier_app](resources/supplier_app.png)
 
-![script](resource/script.png)
+![script](resources/script.png)
 
 ## CI/CD
 
-Le CI/CD est configuré avec GitHub Actions. Le workflow est déclenché à chaque push ou pull request vers la branche `main`. Il lance Redis et MySQL, lance les tests build l'image et la pousse vers Docker Hub si les tests passent.
+Le CI/CD est configuré avec GitHub Actions. Le workflow est déclenché à chaque push ou pull request vers la branche `main`. Il lance Redis et MySQL, puis lance les tests (voir plus bas une capture d'écran des tests). De plus, avec un self host runner sur la VM, il a une étape qui fait le déploiement en continu de l'application. On a donc une pipeline CI/CD qui test, build et déploie l'application automatiquement.
 
-![alt text](cicd.png)
+![test_example](resources/test_example.png)
+![cicd](resources/cicd.png)
 
 ## Rapport de stock
 

@@ -1,6 +1,4 @@
-# .github/workflows/ci.yml
-
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -8,86 +6,94 @@ on:
   pull_request:
 
 jobs:
-  integration-tests:
-    name: Run Integration Tests
+  ci:
+    name: Build + Integration Tests (GitHub runner)
     runs-on: ubuntu-latest
 
-    env:
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }} 
-      DB_NAME: ${{ secrets.DB_NAME }}
-      REDIS_DB: ${{ secrets.REDIS_DB }}
-      DB_HOST: 127.0.0.1
-      DB_PORT: 3306
-      REDIS_HOST: 127.0.0.1
-      REDIS_PORT: 6379
-
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: ${{ env.DB_NAME }}
-          MYSQL_USER: ${{ env.DB_USER }}
-          MYSQL_PASSWORD: ${{ env.DB_PASSWORD }}
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python with uv and caching
-        uses: actions/setup-python@v5
+      - name: Ensure Docker network exists
+        run: |
+          docker network inspect labo03-network >/dev/null 2>&1 || docker network create labo03-network
 
-      - name: Installer les dépendances
-        run: pip install ".[dev]"
+      - name: Write .env
+        run: |
+          cat > .env << 'EOF'
+          DB_HOST=mysql
+          DB_PORT=3306
+          DB_NAME=labo03_db
+          DB_USER=labo03
+          DB_PASS=labo03
+          REDIS_HOST=redis
+          REDIS_PORT=6379
+          REDIS_DB=0
+          EOF
 
+      - name: Reset any previous stack
+        run: |
+          docker compose down --remove-orphans || true
 
-      - name: Run integration tests
-        env:
-          DB_PASS: ${{ env.DB_PASSWORD }} 
-        run: pytest -v
+      - name: Build & start services
+        run: docker compose up -d --build
 
-  build-and-push:
-    name: Build and Push Docker Image
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Wait for services to be healthy
+        shell: bash
+        run: |
+          set -e
+          echo "Waiting for MySQL..."
+          timeout 90 bash -c 'until docker compose exec -T mysql mysqladmin ping -h 127.0.0.1 -uroot -proot --silent; do sleep 3; done'
+          echo "Waiting for Redis..."
+          timeout 60 bash -c 'until docker compose exec -T redis redis-cli ping | grep -q PONG; do sleep 2; done'
+          # small grace for app boot
+          sleep 8
 
+      - name: Run tests inside app container
+        run: docker compose exec -T store_manager bash -c "PYTHONPATH=. pytest -v --cache-clear"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose down --remove-orphans || true
+          # clean caches that might be created by root inside containers
+          sudo find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
+          sudo find . -name '.pytest_cache' -type d -exec rm -rf {} + 2>/dev/null || true
+          sudo find . -name '*.pyc' -delete 2>/dev/null || true
+
+  deploy:
+    name: Deploy on self-hosted runner
+    runs-on: self-hosted
+    needs: ci
+    if: github.ref == 'refs/heads/main'
     steps:
-      - name: Checkout repository
+      - name: Clean up caches
+        run: |
+          sudo find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
+          sudo find . -name '.pytest_cache' -type d -exec rm -rf {} + 2>/dev/null || true
+          sudo find . -name '*.pyc' -delete 2>/dev/null || true
+
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Ensure Docker network exists
+        run: |
+          docker network inspect labo03-network >/dev/null 2>&1 || docker network create labo03-network
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Write .env for runtime
+        run: |
+          cat > .env << 'EOF'
+          DB_HOST=mysql
+          DB_PORT=3306
+          DB_NAME=labo03_db
+          DB_USER=labo03
+          DB_PASS=labo03
+          REDIS_HOST=redis
+          REDIS_PORT=6379
+          REDIS_DB=0
+          EOF
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true 
-          tags: filou10/log430-a25-labo02:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Deploy with Docker Compose
+        run: |
+          docker compose down --remove-orphans || true
+          docker compose up -d --build
